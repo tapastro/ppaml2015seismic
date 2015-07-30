@@ -371,6 +371,12 @@ def invert_dist_azimuth(loc1, dist, azi):
 
   return np.degrees(lng2), np.degrees(lat2)
 
+def invert_dist_azimuth2(stat, dist, azi):
+    loc1 = STATIONS[int(stat)][1:3]
+    tmplon,tmplat = invert_dist_azimuth(loc1,dist,azi)
+    return (tmplon+360)%360,tmplat
+    
+
 def compute_degdiff(angle1, angle2):
   """
   The difference of two angles given in degrees. The answer is an angle from
