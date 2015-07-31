@@ -113,7 +113,7 @@ def write_namedtuple(obj, filename):
   write out a named tuple to file
   """
   fp = open(filename, "w")
-  
+
   for field in obj._fields:
     print("{0} = {1}".format(field, getattr(obj, field)), file = fp)
 
@@ -123,12 +123,12 @@ def read_namedtuple(typename, filename):
   """
   returns a named tuple that has been written using write_namedtuple
   the format of the file is simply
-  
+
   <attribute name> = <python expression>
-  
+
   """
   all_varnames, all_values = [], []
-  
+
   for line in file(filename):
     result = re.search("(.*) = (.*)", line.strip())
 
@@ -148,13 +148,13 @@ def write_episodes(episodes, filename):
   """
   Write out a list of episodes to a file
   """
-  
+
   fp = open(filename, "w")
-  
+
   print("Episodes:", file=fp, end="\n\n")
 
   for episode in episodes:
-    
+
     write_single_episode(episode, fp)
 
   fp.close()
@@ -169,11 +169,11 @@ def write_single_episode(episode, fp):
     print("Detections:",  file=fp)
 
     for detection in episode.detections:
-      
+
       print(" ".join(map(str, detection)), file=fp)
 
     print("Assocs:", file=fp)
-    
+
     for evnum, assoc in enumerate(episode.assocs):
 
       for detnum in assoc:
@@ -194,67 +194,67 @@ def iterate_episodes(filename):
   discard them as soon as you have read them.
   """
   fp = open(filename)
-  
+
   line1 = fp.readline().strip()
   line2 = fp.readline().strip()
   line3 = fp.readline().strip()
-  
+
   if line1 != "Episodes:" or line2 != "" or line3 != "Events:":
     raise ValueError("Corrupted episodes files")
-  
+
   while True:
-    
+
     # read events
-    
+
     events = []
-    
+
     while True:
       line = fp.readline().strip()
       if line == "Detections:":
         break
-      
+
       events.append(Event(*map(float, line.split())))
-    
+
     # read detections
-    
+
     detections = []
-    
+
     while True:
       line = fp.readline().strip()
       if line == "Assocs:":
         break
-      
+
       # convert the fields of the detection to floating point, but the
       # first field, which is the station num needs to be converted to integer
       det = map(float, line.split())
       det[0] = int(det[0])
-      
+
       detections.append(Detection(*det))
-      
+
     # read associations
     assocs = [[] for _ in events]
-      
+
     while True:
       line = fp.readline().strip()
       if line == "":
         break
-      
+
       evnum, detnum = map(int, line.split())
-      
+
       assocs[evnum].append(detnum)
-      
+
     # now we have a complete episode
     yield Episode(events, detections, assocs)
-    
+
     # check if we have more episodes to read
     line = fp.readline().strip()
-    
+
     if line == "Events:":
       continue
-    
+
     else:
       break
-  
+
 def compute_distance(loc1, loc2):
   """
   Compute the great circle distance between two point on the earth's surface
@@ -271,13 +271,13 @@ def compute_distance(loc1, loc2):
   """
   lng1, lat1 = np.radians(loc1[0]), np.radians(loc1[1])
   lng2, lat2 = np.radians(loc2[0]), np.radians(loc2[1])
-  
+
   sin_lat1, cos_lat1 = np.sin(lat1), np.cos(lat1)
   sin_lat2, cos_lat2 = np.sin(lat2), np.cos(lat2)
-  
+
   delta_lng = lng2 - lng1
   cos_delta_lng, sin_delta_lng = np.cos(delta_lng), np.sin(delta_lng)
-  
+
   # From http://en.wikipedia.org/wiki/Great_circle_distance:
   #   Historically, the use of this formula was simplified by the
   #   availability of tables for the haversine function. Although this
@@ -285,12 +285,12 @@ def compute_distance(loc1, loc2):
   #   rounding errors for the special (and somewhat unusual) case of
   #   antipodal points (on opposite ends of the sphere). A more
   #   complicated formula that is accurate for all distances is: (below)
-  
+
   angle = np.arctan2(np.sqrt((cos_lat2 * sin_delta_lng) ** 2 +
                              (cos_lat1 * sin_lat2 -
                               sin_lat1 * cos_lat2 * cos_delta_lng) ** 2),
                      sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * cos_delta_lng)
-  
+
   return np.degrees(angle)
 
 def compute_distance2(station, e_lon, sin_e_lat):
@@ -312,7 +312,7 @@ def compute_azimuth(loc1, loc2):
                    west = 270 degrees.
 
   Return an angle in 0 to 360 degrees.
-  
+
   >>> int(compute_azimuth((10,0), (20, 0)))
   90
   >>> int(compute_azimuth((20,0), (10, 0)))
@@ -326,26 +326,26 @@ def compute_azimuth(loc1, loc2):
   """
   lng1, lat1 = np.radians(loc1[0]), np.radians(loc1[1])
   lng2, lat2 = np.radians(loc2[0]), np.radians(loc2[1])
-  
+
   delta_lon = lng2 - lng1;
-  
+
   y = np.sin(delta_lon)
-  
+
   x = np.cos(lat1) * np.tan(lat2) - np.sin(lat1)*np.cos(delta_lon);
-  
+
   azi = np.degrees(np.arctan2(y, x))
 
   # azi is now in range -180/180
   # the following trick brings it in the 0 - 360 range
 
   return (azi + 360) % 360
-  
+
 def compute_azimuth2(station, e_lon, sin_e_lat):
     s_lon,s_lat = STATIONS[int(station)][1:3]
     e_lat = np.degrees(np.arcsin(sin_e_lat))
-    return compute_azimuth([e_lon,e_lat],[s_lon,s_lat])
-    
-    
+    return compute_azimuth([s_lon,s_lat], [e_lon,e_lat])
+
+
 def invert_dist_azimuth(loc1, dist, azi):
   """
   Return the location loc2=(longitude, latitude) such that
@@ -375,14 +375,14 @@ def invert_dist_azimuth2(stat, dist, azi):
     loc1 = STATIONS[int(stat)][1:3]
     tmplon,tmplat = invert_dist_azimuth(loc1,dist,azi)
     return (tmplon+360)%360,tmplat
-    
+
 
 def compute_degdiff(angle1, angle2):
   """
   The difference of two angles given in degrees. The answer is an angle from
   -180 to 180. Positive angles imply angle2 is clockwise from angle1 and -ve
   angles imply counter-clockwise.
-  
+
   >>> int(compute_degdiff(40, 30))
   -10
   >>> int(compute_degdiff(30, 40))
@@ -415,7 +415,7 @@ def mvar_norm_fit(data):
   Returns a mean vector (also a row vector) and a covariance matrix.
   """
   assert(len(data) > 1)
-  
+
   mu = sum(data) / len(data)
 
   # data should be a row vectors
@@ -431,10 +431,10 @@ def mvar_norm_sample(mu, Sigma):
   """
   Generates a random variable from a multivariate normal distribution with
   given mean vector and covariance matrix.
-  
+
   Returns a vector of the same shape as the mean vector
-  
-  see http://en.wikipedia.org/wiki/Multivariate_normal_distribution  
+
+  see http://en.wikipedia.org/wiki/Multivariate_normal_distribution
   """
   # mu better be a row vector
   assert(len(mu.shape)==1)
@@ -444,9 +444,9 @@ def mvar_norm_sample(mu, Sigma):
   root = np.linalg.cholesky(Sigma)
 
   z = np.array([norm.rvs() for _ in mu])
-  
+
   return mu + np.dot(root, z)
-  
+
 # if this file is run stand alone it tests the doc strings
 
 if __name__ == "__main__":
